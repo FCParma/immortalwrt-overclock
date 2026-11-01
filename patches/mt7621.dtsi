@@ -85,7 +85,7 @@
 
 		sysc: syscon@0 {
 			assigned-clocks = <&sysc 1>, <&sysc 3>;
-			assigned-clock-rates = <1000000000>, <220000000>;
+			assigned-clock-rates = <1100000000>, <220000000>;
 			compatible = "mediatek,mt7621-sysc", "syscon";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
