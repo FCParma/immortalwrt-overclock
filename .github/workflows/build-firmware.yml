@@ -39,15 +39,11 @@ jobs:
             exit 1
           fi
           
-          # Внедряем блок принудительного разгона CPU до 1 ГГц перед закрывающей скобкой dts
-          sed -i '$i \
-          &sysclock {\
-              assigned-clocks = <&sysclock 1>, <&sysclock 3>;\
-              assigned-clock-rates = <1000000000>, <220000000>;\
-          };' $DTS_FILE
+          # Просто дописываем переопределение sysclock в самый конец файла
+          echo -e "\n&sysclock {\n\tassigned-clocks = <&sysclock 1>, <&sysclock 3>;\n\tassigned-clock-rates = <1000000000>, <220000000>;\n};" >> $DTS_FILE
           
-          echo "DTS Patch applied successfully. Checking file end:"
-          tail -n 15 $DTS_FILE
+          echo "DTS Patch applied successfully. Verification:"
+          tail -n 10 $DTS_FILE
 
       - name: Generate Configuration
         run: |
