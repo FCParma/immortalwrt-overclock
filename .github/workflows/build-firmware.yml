@@ -19,7 +19,7 @@ jobs:
 
       - name: Clone ImmortalWrt Source
         run: |
-          git clone --depth 1 -b openwrt-25.12 https://github.com openwrt
+          git clone --depth 1 -b openwrt-25.12 https://github.com/immortalwrt/immortalwrt openwrt
           
       - name: Update and install feeds
         run: |
@@ -66,7 +66,7 @@ jobs:
           make -j2 V=s || make -j1 V=s
 
       - name: Upload Firmware Artifacts
-        uses: actions/artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
           name: Overclocked-ImmortalWrt-Files
           path: openwrt/bin/targets/ramips/mt7621/*sysupgrade.bin
