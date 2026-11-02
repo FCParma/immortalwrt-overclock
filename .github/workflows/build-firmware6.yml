@@ -1,0 +1,69 @@
+name: Build Overclocked ImmortalWrt (1100MHz 6)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+            gettext git libncurses5-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev \
+            file wget subversion texinfo ecj fastjar java-propose-classpath lzma
+
+      - name: Clone ImmortalWrt Source
+        run: |
+          git clone --depth 1 -b openwrt-25.12 https://github.com/immortalwrt/immortalwrt openwrt
+          
+      - name: Update and install feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          # Удаляем пакет со сломанной циклической зависимостью, чтобы не мешал
+          rm -rf feeds/luci/applications/luci-app-weechat
+
+      - name: Force Overclock in Target Patches
+        run: |
+          cd openwrt
+          # В репозитории ImmortalWrt патчи ядра лежат в виде текста. 
+          # Мы находим файл патча тактового генератора mt7621 и меняем в нем 880МГц на 1100МГц.
+          # Когда компилятор будет применять родные патчи, он сам вставит 1100МГц в Си-код драйвера!
+          find target/linux/ramips/patches-6.12/ -type f -exec sed -i 's/880000000/1100000000/g' {} + 2>/dev/null || true
+          echo "Target kernel patches successfully modified to 1100MHz."
+
+      - name: Inject 1100MHz to Router DTS
+        run: |
+          cd openwrt
+          DTS_FILE="target/linux/ramips/dts/mt7621_xiaomi_mi-router-3g.dts"
+          # Дописываем переопределение sysc в DTS модели роутера
+          echo -e "\n&sysc {\n\tassigned-clocks = <&sysc 1>, <&sysc 3>;\n\tassigned-clock-rates = <1100000000>, <220000000>;\n};" >> $DTS_FILE
+          echo "DTS configuration appended."
+
+      - name: Generate Configuration
+        run: |
+          cd openwrt
+          # Задаем архитектуру ramips/mt7621 и конкретную модель Xiaomi Mi Router 3G
+          echo "CONFIG_TARGET_ramips=y" > .config
+          echo "CONFIG_TARGET_ramips_mt7621=y" >> .config
+          echo "CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3g=y" >> .config
+          make defconfig
+
+      - name: Compile Firmware
+        run: |
+          cd openwrt
+          # Компиляция ядра и базовой прошивки в 2 потока
+          make -j2 download
+          make -j2 V=s || make -j1 V=s
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Overclocked-ImmortalWrt-1100MHz-6
+          path: openwrt/bin/targets/ramips/mt7621/*sysupgrade.bin
