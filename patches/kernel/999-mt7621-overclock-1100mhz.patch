@@ -1,0 +1,10 @@
+--- a/drivers/clk/mediatek/clk-mt7621.c
++++ b/drivers/clk/mediatek/clk-mt7621.c
+@@ -54,7 +54,7 @@
+ #define MT7621_CLK_FB_DIV_MASK	0x7f
+ 
+-#define MT7621_CLK_CPU_DEFAULT	880000000
++#define MT7621_CLK_CPU_DEFAULT	1100000000
+ #define MT7621_CLK_BUS_DEFAULT	220000000
+ 
+ static const struct mt7621_clk_pll_data pll_data[] = {
