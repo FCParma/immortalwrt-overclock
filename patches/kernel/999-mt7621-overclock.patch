@@ -1,0 +1,12 @@
+--- a/drivers/clk/mediatek/clk-mt7621.c
++++ b/drivers/clk/mediatek/clk-mt7621.c
+@@ -148,6 +148,9 @@ static unsigned long mt7621_clk_recalc_r
+ 	struct mt7621_clk_priv *priv = container_of(hw, struct mt7621_clk_priv, hw);
+ 	u32 val;
+ 
++	if (hw && hw->init && hw->init->name && hw->init->name[0] == 'c' && hw->init->name[1] == 'p' && hw->init->name[2] == 'u')
++		return 1100000000UL;
++
+ 	regmap_read(priv->sysc, SYSC_REG_CLKCFG0, &val);
+ 	if (val & CPU_CLK_SEL_MSK)
+ 		return parent_rate;
