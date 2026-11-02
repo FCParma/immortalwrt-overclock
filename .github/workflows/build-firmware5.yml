@@ -26,6 +26,8 @@ jobs:
           cd openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          # Удаляем проблемный пакет с циклической зависимостью
+          rm -rf feeds/luci/applications/luci-app-weechat
 
       - name: Prepare Kernel Source
         run: |
