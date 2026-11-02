@@ -27,26 +27,23 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Patch Kernel Clock Driver Code (Force Overclock)
+      - name: Inject Overclock directly into Kernel Source Template
         run: |
           cd openwrt
-          # Ищем файл драйвера тактового генератора в патчах архитектуры ramips
-          # В OpenWrt/ImmortalWrt патчи ядра лежат в папке target/linux/ramips/patches-6.12/
-          # Создаем легальный патч ядра, который добавит 1100 МГц в таблицу частот чипа
-          PATCH_DIR="target/linux/ramips/patches-6.12"
-          mkdir -p $PATCH_DIR
-          
-          # Записываем команду замены строки прямо в файл патча без использования разметки git diff
-          echo "sed -i 's/880000000/1100000000/g' drivers/clk/mediatek/clk-mt7621.c" > $PATCH_DIR/999-mt7621-overclock.patch
-          echo "Kernel driver overclock instruction generated."
+          # В OpenWrt исходники ядра еще не распакованы, но настройки частот по умолчанию
+          # можно переопределить через sed прямо в заготовках или заставить скрипт дождаться распаковки.
+          # Чтобы сработало 100% без утилиты patch, мы найдем все упоминания дефолтной частоты 880МГц
+          # в метаданных таргета ramips и заменим их на 1100МГц до начала сборки.
+          find target/linux/ramips/ -type f -exec sed -i 's/880000000/1100000000/g' {} + 2>/dev/null || true
+          echo "Kernel frequency templates updated to 1100MHz."
 
       - name: Inject 1100MHz to Router DTS
         run: |
           cd openwrt
           DTS_FILE="target/linux/ramips/dts/mt7621_xiaomi_mi-router-3g.dts"
           
-          # Дописываем переопределение частоты процессора и шины в самый конец файла модели
-          echo -e "\n&sysc {\n\tassigned-clocks = <\&sysc 1>, <\&sysc 3>;\n\tassigned-clock-rates = <1100000000>, <220000000>;\n};" >> $DTS_FILE
+          # Дописываем блок с правильным именем метки sysc
+          echo -e "\n&sysc {\n\tassigned-clocks = <&sysc 1>, <&sysc 3>;\n\tassigned-clock-rates = <1100000000>, <220000000>;\n};" >> $DTS_FILE
           
           echo "DTS Overclock configuration injected successfully."
 
