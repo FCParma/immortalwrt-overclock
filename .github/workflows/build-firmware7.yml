@@ -28,7 +28,18 @@ jobs:
           ./scripts/feeds install -a
           rm -rf feeds/luci/applications/luci-app-weechat
 
-      - name: Generate Base Configuration
+      - name: Inject Genuine Kernel Patch
+        run: |
+          PATCH_DEST="openwrt/target/linux/ramips/patches-6.12"
+          mkdir -p $PATCH_DEST
+          
+          # Копируем наш файл патча в официальную папку автоматических патчей ядра OpenWrt
+          cp patches/kernel/999-mt7621-overclock.patch $PATCH_DEST/
+          
+          echo "Genuine kernel patch integrated successfully. Checking file:"
+          cat $PATCH_DEST/999-mt7621-overclock.patch
+
+      - name: Generate Configuration
         run: |
           cd openwrt
           echo "CONFIG_TARGET_ramips=y" > .config
@@ -36,39 +47,10 @@ jobs:
           echo "CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3g=y" >> .config
           make defconfig
 
-      - name: Extract Kernel Source without Menu
-        run: |
-          cd openwrt
-          # Скачиваем и распаковываем ядро во временную папку сборки
-          make target/linux/download
-          make target/linux/compile-targets BUILD_LOG=1 || true
-          echo "Kernel package extracted into build_dir."
-
-      - name: Intercept and Fix Clock Framework
-        run: |
-          cd openwrt
-          # Автоматически находим распакованный Си-файл драйвера внутри build_dir
-          TARGET_FILE=$(find build_dir/ -name "clk-mt7621.c" | head -n 1)
-          
-          if [ -z "$TARGET_FILE" ]; then
-            echo "Error: clk-mt7621.c file not found after automatic extraction!"
-            exit 1
-          fi
-          
-          echo "Found target driver file at: $TARGET_FILE"
-          
-          # Намертво вырезаем функцию recalc_rate и заменяем её на принудительные 1100 МГц для cpu
-          # Используем sed для замены стандартного расчета на безусловный возврат частоты
-          sed -i '/static unsigned long mt7621_clk_recalc_rate/,/^}/c\
-          static unsigned long mt7621_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)\n{\n\tstruct mt7621_clk_priv *priv = container_of(hw, struct mt7621_clk_priv, hw);\n\tif (hw \&\& hw->init \&\& hw->init->name \&\& strcmp(hw->init->name, "cpu") == 0) {\n\t\treturn 1100000000UL;\n\t}\n\tu32 val;\n\tregmap_read(priv->sysc, 0x10, \&val);\n\tif (val \& (1 << 30))\n\t\treturn parent_rate;\n\tregmap_read(priv->sysc, 0x1c, \&val);\n\treturn parent_rate * ((val >> 12) \& 0x7f);\n}' "$TARGET_FILE"
-          
-          echo "Verification of modified driver code:"
-          grep -A 8 "mt7621_clk_recalc_rate" "$TARGET_FILE"
-
       - name: Compile Final Firmware
         run: |
           cd openwrt
-          # Запускаем окончательную компиляцию прошивки в 2 потока
+          make -j2 download
           make -j2 V=s || make -j1 V=s
 
       - name: Upload Firmware Artifacts
