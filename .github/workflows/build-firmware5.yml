@@ -32,8 +32,8 @@ jobs:
       - name: Prepare Kernel Source
         run: |
           cd openwrt
-          # Запускаем штатную распаковку ядра OpenWrt
-          make target/linux/prepare
+          # Запускаем распаковку ядра без вызова интерактивного меню терминала
+          make target/linux/prepare RUN_MENUCONFIG=0
           echo "Kernel source extracted successfully."
 
       - name: Force Overclock via Prepare Step
