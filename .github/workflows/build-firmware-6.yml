@@ -1,4 +1,4 @@
-name: Build Overclocked ImmortalWrt (1100MHz 6)
+name: Build Overclocked ImmortalWrt v6
 
 on:
   workflow_dispatch:
@@ -65,5 +65,5 @@ jobs:
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Overclocked-ImmortalWrt-1100MHz-6
+          name: Overclocked-ImmortalWrt-6
           path: openwrt/bin/targets/ramips/mt7621/*sysupgrade.bin
