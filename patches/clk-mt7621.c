@@ -254,7 +254,6 @@ static unsigned long mt7621_xtal_recalc_rate(struct clk_hw *hw,
 static unsigned long mt7621_cpu_recalc_rate(struct clk_hw *hw,
 					    unsigned long xtal_clk)
 {
-	/*
 	static const u32 prediv_tbl[] = { 0, 1, 2, 2 };
 	struct mt7621_clk *clk = to_mt7621_clk(hw);
 	struct regmap *sysc = clk->priv->sysc;
@@ -285,8 +284,6 @@ static unsigned long mt7621_cpu_recalc_rate(struct clk_hw *hw,
 	}
 
 	return cpu_clk / ffiv * ffrac;
-	 */
-	return 1100000000UL;
 }
 
 static unsigned long mt7621_bus_recalc_rate(struct clk_hw *hw,
@@ -356,6 +353,12 @@ static void __init mt7621_clk_init(struct device_node *node)
 	struct mt7621_clk_priv *priv;
 	struct clk_hw_onecell_data *clk_data;
 	int ret, i, count;
+	
+	void __iomem *sysc_hardware_base = ioremap(0x1e000000, 0x100);
+	if (sysc_hardware_base) {
+		writel(0x4190a000, sysc_hardware_base + 0x2c); 
+		iounmap(sysc_hardware_base);
+	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
