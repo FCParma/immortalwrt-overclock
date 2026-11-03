@@ -1,5 +1,5 @@
---- a/drivers/clk/mediatek/clk-mt7621.c
-+++ b/drivers/clk/mediatek/clk-mt7621.c
+--- a/arch/mips/ralink/clk.c
++++ b/arch/mips/ralink/clk.c
 @@ -148,6 +148,9 @@ static unsigned long mt7621_clk_recalc_r
  	struct mt7621_clk_priv *priv = container_of(hw, struct mt7621_clk_priv, hw);
  	u32 val;
