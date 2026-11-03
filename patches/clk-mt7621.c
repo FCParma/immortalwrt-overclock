@@ -356,7 +356,7 @@ static void __init mt7621_clk_init(struct device_node *node)
 	
 	void __iomem *sysc_hardware_base = ioremap(0x1e000000, 0x100);
 	if (sysc_hardware_base) {
-		writel(0x4190a000, sysc_hardware_base + 0x2c); 
+		writel(0x3b9aca00, sysc_hardware_base + 0x2c); 
 		iounmap(sysc_hardware_base);
 	}
 
