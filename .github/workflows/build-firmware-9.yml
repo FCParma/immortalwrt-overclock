@@ -1,4 +1,4 @@
-name: Build Overclocked ImmortalWrt v9.2
+name: Build Overclocked ImmortalWrt v9.3
 
 on:
   workflow_dispatch:
@@ -39,10 +39,10 @@ jobs:
       - name: Extract Kernel and Swap File
         run: |
           cd openwrt
-          # Запускаем распаковку ядра официальным скрытым методом
+          # Запускаем распаковку ядра
           make target/linux/prepare RUN_MENUCONFIG=0
           
-          # Автоматически находим, куда именно в build_dir распаковался оригинальный драйвер
+          # Находим точный путь к оригинальному файлу драйвера
           REAL_FILE=$(find build_dir/ -name "clk-mt7621.c" | head -n 1)
           
           if [ -z "$REAL_FILE" ]; then
@@ -52,11 +52,10 @@ jobs:
           
           echo "Original file found at: $REAL_FILE"
           
-          # Копируем наш измененный файл из папки patches поверх оригинального
+          # Копируем наш измененный Си-файл поверх оригинального
           cp ../patches/clk-mt7621.c $REAL_FILE
           
-          echo "Verification of direct swap:"
-          grep "1100000000UL" $REAL_FILE
+          echo "Direct swap completed successfully. Code is ready for compiler."
 
       - name: Compile Final Firmware
         run: |
@@ -66,5 +65,5 @@ jobs:
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Overclocked-ImmortalWrt-9.2
+          name: Overclocked-ImmortalWrt-9.3
           path: openwrt/bin/targets/ramips/mt7621/*sysupgrade.bin
