@@ -1,4 +1,4 @@
-name: Build Overclocked ImmortalWrt
+name: Build Overclocked ImmortalWrt v1
 
 on:
   workflow_dispatch: # Запуск вручную по кнопке
@@ -64,5 +64,5 @@ jobs:
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Overclocked-ImmortalWrt-Files
+          name: Overclocked-ImmortalWrt-1
           path: openwrt/bin/targets/ramips/mt7621/*sysupgrade.bin
