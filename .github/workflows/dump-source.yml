@@ -1,4 +1,4 @@
-name: Dump Kernel Clock Sources
+name: Dump Kernel Clock and Platform Sources
 
 on:
   workflow_dispatch:
@@ -35,21 +35,24 @@ jobs:
           echo "CONFIG_TARGET_ramips_mt7621=y" >> .config
           echo "CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-3g=y" >> .config
           make defconfig
-          # Запускаем распаковку ядра до этапа наложения патчей
           make target/linux/prepare RUN_MENUCONFIG=0 || true
 
-      - name: Collect Target Files
+      - name: Collect Target Files with Structure
         run: |
           mkdir -p dump_files/
-          # Находим все файлы clk.c и clk-mt7621.c внутри распакованного ядра и копируем их
-          find openwrt/build_dir/ -name "clk-mt7621.c" -exec cp {} dump_files/ \; 2>/dev/null || true
-          find openwrt/build_dir/ -name "clk.c" -exec cp {} dump_files/ \; 2>/dev/null || true
+          cd openwrt
           
-          echo "Files collected in dump_files folder:"
-          ls -la dump_files/
+          # Находим файлы и копируем их вместе со структурой папок внутри build_dir
+          find build_dir/ -name "clk-mt7621.c" -exec cp --parents {} ../dump_files/ \; 2>/dev/null || true
+          find build_dir/ -name "mt7621.c" -exec cp --parents {} ../dump_files/ \; 2>/dev/null || true
+          
+          # Сохраняем текстовый лог с точными путями для проверки
+          echo "=== Found paths ===" > ../dump_files/found_paths.txt
+          find build_dir/ -name "clk-mt7621.c" >> ../dump_files/found_paths.txt 2>/dev/null || true
+          find build_dir/ -name "mt7621.c" >> ../dump_files/found_paths.txt 2>/dev/null || true
 
       - name: Upload Original Sources
         uses: actions/upload-artifact@v4
         with:
-          name: Original-Kernel-Clock-Files
-          path: dump_files/*
+          name: Original-Kernel-And-Platform-Files
+          path: dump_files/
