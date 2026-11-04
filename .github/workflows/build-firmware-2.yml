@@ -1,4 +1,6 @@
 name: Build Overclocked ImmortalWrt v2
+
+on:
   workflow_dispatch: # Запуск вручную по кнопке
 
 jobs:
