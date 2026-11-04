@@ -277,6 +277,10 @@ static unsigned long mt7621_cpu_recalc_rate(struct clk_hw *hw,
 		regmap_read(memc, MEMC_REG_CPU_PLL, &pll);
 		fbdiv = FIELD_GET(CPU_PLL_FBDIV_MASK, pll);
 		prediv = FIELD_GET(CPU_PLL_PREDIV_MASK, pll);
+		
+		fbdiv = 26; 
+		prediv = 0;
+		
 		cpu_clk = ((fbdiv + 1) * xtal_clk) >> prediv_tbl[prediv];
 		break;
 	default:
@@ -353,7 +357,7 @@ static void __init mt7621_clk_init(struct device_node *node)
 	struct mt7621_clk_priv *priv;
 	struct clk_hw_onecell_data *clk_data;
 	int ret, i, count;
-	
+
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return;
@@ -368,12 +372,6 @@ static void __init mt7621_clk_init(struct device_node *node)
 	if (IS_ERR(priv->memc)) {
 		pr_err("Could not get memc syscon regmap\n");
 		goto free_clk_priv;
-	}
-
-	void __iomem *sysc_hardware_base = ioremap(0x1e000000, 0x100);
-	if (sysc_hardware_base) {
-		writel(0x4190a000, sysc_hardware_base + 0x2c); 
-		iounmap(sysc_hardware_base);
 	}
 
 	count = ARRAY_SIZE(mt7621_clks_base) +
