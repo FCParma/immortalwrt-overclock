@@ -210,6 +210,27 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		return;
 	if (!register_vsmp_smp_ops())
 		return;
+		
+	/* ФИЗИЧЕСКИЙ РАЗГОН 1100 МГц: Меняем множитель CPU PLL и принудительно фиксируем частоту */
+	{
+		void __iomem *memc_base = (void __iomem *)0xbe007600;
+		void __iomem *sysc_base = (void __iomem *)0xbe000000;
+		u32 pll_val, clkcfg;
 
-	*(volatile uint32_t *)(0xbe007648) = (*(volatile uint32_t *)(0xbe007648) & ~(0x7f << 4)) | (0x2b << 4);
+		/* 1. Читаем текущий регистр CPU PLL */
+		pll_val = __raw_readl(memc_base + 0x48); /* MEMC_REG_CPU_PLL */
+		
+		/* 2. Очищаем старый множитель (биты 4-10) и задаем коэффициент 55 (0x37) для 1100 МГц */
+		pll_val &= ~(0x7f << 4);
+		pll_val |= (0x37 << 4);
+		__raw_writel(pll_val, memc_base + 0x48);
+
+		/* 3. АППАРАТНЫЙ СБРОС И ЛАТЧ: Заставляем чип физически применить новую частоту генератора */
+		clkcfg = __raw_readl(sysc_base + 0x2c); /* SYSC_REG_CLKCFG0 */
+		clkcfg |= (1 << 31); /* Выставляем бит инициализации/фиксации PLL Reset */
+		__raw_writel(clkcfg, sysc_base + 0x2c);
+		
+		/* Короткая задержка, чтобы аналоговая фаза PLL успела стабилизироваться */
+		__delay(2000);
+	}		
 }
