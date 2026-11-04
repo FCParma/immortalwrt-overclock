@@ -354,12 +354,6 @@ static void __init mt7621_clk_init(struct device_node *node)
 	struct clk_hw_onecell_data *clk_data;
 	int ret, i, count;
 	
-	void __iomem *sysc_hardware_base = ioremap(0x1e000000, 0x100);
-	if (sysc_hardware_base) {
-		writel(0x3b9aca00, sysc_hardware_base + 0x2c); 
-		iounmap(sysc_hardware_base);
-	}
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return;
@@ -374,6 +368,12 @@ static void __init mt7621_clk_init(struct device_node *node)
 	if (IS_ERR(priv->memc)) {
 		pr_err("Could not get memc syscon regmap\n");
 		goto free_clk_priv;
+	}
+
+	void __iomem *sysc_hardware_base = ioremap(0x1e000000, 0x100);
+	if (sysc_hardware_base) {
+		writel(0x4190a000, sysc_hardware_base + 0x2c); 
+		iounmap(sysc_hardware_base);
 	}
 
 	count = ARRAY_SIZE(mt7621_clks_base) +
