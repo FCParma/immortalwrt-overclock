@@ -185,23 +185,45 @@ static void __init force_smooth_overclock(void)
 	for (d = 0; d < 100000; d++) { __asm__ __volatile__(""); }
 }
 
-void __init prom_soc_init(void)
+void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
-	struct clk *clk;
-	u32 n0, n1;
-	u32 id, rev;
+	/* Early detection of CMP support */
+	mips_cm_probe();
+	mips_cpc_probe();
 
-	n0 = __raw_readl((void __iomem *)(0xbe00000c));
-	n1 = __raw_readl((void __iomem *)(0xbe000010));
-	id = __raw_readl((void __iomem *)(0xbe000000));
-	rev = __raw_readl((void __iomem *)(0xbe000004));
-
-	if (n0 == MT7621_CHIP_NAME0 && n1 == MT7621_CHIP_NAME1) {
-		mips_machgroup = MACH_MS_MT7621;
-		rt_sysc_membase = (void __iomem *)0xbe000000;
-	} else {
-		panic("Unsupported SoC: %08x %08x\n", n0, n1);
+	if (mips_cps_numiocu(0)) {
+		/*
+		 * mips_cm_probe() wipes out bootloader
+		 * config for CM regions and we have to configure them
+		 * again. This SoC cannot talk to pamlbus devices
+		 * without proper iocu region set up.
+		 *
+		 * FIXME: it would be better to do this with values
+		 * from DT, but we need this very early because
+		 * without this we cannot talk to pretty much anything
+		 * including serial.
+		 */
+		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
+		write_gcr_reg0_mask(~MT7621_PALMBUS_SIZE |
+				    CM_GCR_REGn_MASK_CMTGT_IOCU0);
+		__sync();
 	}
+
+	if (mt7621_soc_valid())
+		soc_info->compatible = "mediatek,mt7621-soc";
+	else
+		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n",
+				mt7621_get_soc_name0(),
+				mt7621_get_soc_name1());
+	ralink_soc = MT762X_SOC_MT7621AT;
+
+	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
+		"MediaTek %s ver:%u eco:%u",
+		mt7621_get_soc_id(),
+		mt7621_get_soc_ver(),
+		mt7621_get_soc_eco());
+
+	soc_info->mem_detect = mt7621_memory_detect;
 
 	soc_info_ptr = soc_info;
 
@@ -210,6 +232,6 @@ void __init prom_soc_init(void)
 	if (!register_vsmp_smp_ops())
 		return;
 
-	/* ВЫЗОВ НАШЕГО ПЛАВНОГО РАЗГОНА ДО СТАРТА ЯДРА */
+	/* НАШ ПЛАВНЫЙ АППАРАТНЫЙ РАЗГОН НА САМОМ ВЫХОДЕ ИЗ ФУНКЦИИ */
 	force_smooth_overclock();
 }
