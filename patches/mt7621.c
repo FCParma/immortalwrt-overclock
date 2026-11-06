@@ -164,45 +164,44 @@ static int __init mt7621_soc_dev_init(void)
 }
 device_initcall(mt7621_soc_dev_init);
 
-void __init prom_soc_init(struct ralink_soc_info *soc_info)
+static void __init force_smooth_overclock(void)
 {
-	/* Early detection of CMP support */
-	mips_cm_probe();
-	mips_cpc_probe();
+	/* Физические базовые адреса чипа MT7621 */
+	volatile uint32_t *memc_pll = (volatile uint32_t *)(0xbe007648);
+	volatile uint32_t *sysc_cfg = (volatile uint32_t *)(0xbe00002c);
+	uint32_t val;
+	volatile int d;
 
-	if (mips_cps_numiocu(0)) {
-		/*
-		 * mips_cm_probe() wipes out bootloader
-		 * config for CM regions and we have to configure them
-		 * again. This SoC cannot talk to pamlbus devices
-		 * without proper iocu region set up.
-		 *
-		 * FIXME: it would be better to do this with values
-		 * from DT, but we need this very early because
-		 * without this we cannot talk to pretty much anything
-		 * including serial.
-		 */
-		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
-		write_gcr_reg0_mask(~MT7621_PALMBUS_SIZE |
-				    CM_GCR_REGn_MASK_CMTGT_IOCU0);
-		__sync();
+	/* Шаг 1. Плавный подъем множителя PLL процессора (от дефолтных 22 до 27) */
+	/* Шаг за шагом меняем биты 4-10 регистра CPU_PLL с микропаузами */
+	for (val = 22; val <= 27; val++) {
+		*memc_pll = (*memc_pll & ~(0x7f << 4)) | (val << 4);
+		/* Аппаратная микросекундная пауза, чтобы стабилизировать питание */
+		for (d = 0; d < 50000; d++) { __asm__ __volatile__(""); }
 	}
 
-	if (mt7621_soc_valid())
-		soc_info->compatible = "mediatek,mt7621-soc";
-	else
-		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n",
-				mt7621_get_soc_name0(),
-				mt7621_get_soc_name1());
-	ralink_soc = MT762X_SOC_MT7621AT;
+	/* Шаг 2. Аппаратная фиксация (Latch) итоговой частоты 1080/1100 МГц */
+	*sysc_cfg |= (1 << 31);
+	for (d = 0; d < 100000; d++) { __asm__ __volatile__(""); }
+}
 
-	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
-		"MediaTek %s ver:%u eco:%u",
-		mt7621_get_soc_id(),
-		mt7621_get_soc_ver(),
-		mt7621_get_soc_eco());
+void __init prom_soc_init(void)
+{
+	struct clk *clk;
+	u32 n0, n1;
+	u32 id, rev;
 
-	soc_info->mem_detect = mt7621_memory_detect;
+	n0 = __raw_readl((void __iomem *)(0xbe00000c));
+	n1 = __raw_readl((void __iomem *)(0xbe000010));
+	id = __raw_readl((void __iomem *)(0xbe000000));
+	rev = __raw_readl((void __iomem *)(0xbe000004));
+
+	if (n0 == MT7621_CHIP_NAME0 && n1 == MT7621_CHIP_NAME1) {
+		mips_machgroup = MACH_MS_MT7621;
+		rt_sysc_membase = (void __iomem *)0xbe000000;
+	} else {
+		panic("Unsupported SoC: %08x %08x\n", n0, n1);
+	}
 
 	soc_info_ptr = soc_info;
 
@@ -210,27 +209,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		return;
 	if (!register_vsmp_smp_ops())
 		return;
-		
-	/* ФИЗИЧЕСКИЙ РАЗГОН 1100 МГц: Меняем множитель CPU PLL и принудительно фиксируем частоту */
-	{
-		void __iomem *memc_base = (void __iomem *)0xbe007600;
-		void __iomem *sysc_base = (void __iomem *)0xbe000000;
-		u32 pll_val, clkcfg;
 
-		/* 1. Читаем текущий регистр CPU PLL */
-		pll_val = __raw_readl(memc_base + 0x48); /* MEMC_REG_CPU_PLL */
-		
-		/* 2. Очищаем старый множитель (биты 4-10) и задаем коэффициент 55 (0x37) для 1100 МГц */
-		pll_val &= ~(0x7f << 4);
-		pll_val |= (0x37 << 4);
-		__raw_writel(pll_val, memc_base + 0x48);
-
-		/* 3. АППАРАТНЫЙ СБРОС И ЛАТЧ: Заставляем чип физически применить новую частоту генератора */
-		clkcfg = __raw_readl(sysc_base + 0x2c); /* SYSC_REG_CLKCFG0 */
-		clkcfg |= (1 << 31); /* Выставляем бит инициализации/фиксации PLL Reset */
-		__raw_writel(clkcfg, sysc_base + 0x2c);
-		
-		/* Короткая задержка, чтобы аналоговая фаза PLL успела стабилизироваться */
-		__delay(2000);
-	}		
+	/* ВЫЗОВ НАШЕГО ПЛАВНОГО РАЗГОНА ДО СТАРТА ЯДРА */
+	force_smooth_overclock();
 }
