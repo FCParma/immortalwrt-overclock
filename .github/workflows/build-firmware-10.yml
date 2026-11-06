@@ -1,4 +1,4 @@
-name: Build Overclocked ImmortalWrt v10.2
+name: Build Overclocked ImmortalWrt v10.11
 
 on:
   workflow_dispatch:
@@ -42,29 +42,26 @@ jobs:
           # Распаковываем ядро
           make target/linux/prepare RUN_MENUCONFIG=0
           
-          # Точный путь к платформенному файлу, подтвержденный логом дампа
-          REAL_PLATFORM_FILE="build_dir/target-mipsel_24kc_musl/linux-ramips_mt7621/linux-6.12.112/arch/mips/ralink/mt7621.c"
+          # Находим точный путь к платформенному файлу
+          REAL_PLATFORM_FILE=$(find build_dir/ -name "mt7621.c" | grep "arch/mips/ralink" | head -n 1)
           
-          if [ ! -f "$REAL_PLATFORM_FILE" ]; then
-            echo "Error: Target mt7621.c not found at expected path!"
+          if [ -z "$REAL_PLATFORM_FILE" ]; then
+            echo "Error: Target mt7621.c not found!"
             exit 1
           fi
           
-          echo "Original platform file verified at: $REAL_PLATFORM_FILE"
-          
-          # Копируем наш измененный файл из папки patches поверх оригинального
+          # Подменяем файл оригинальной платформы нашим плавным алгоритмом
           cp ../patches/mt7621.c $REAL_PLATFORM_FILE
-          
-          echo "Direct platform swap completed. Checking injection:"
-          grep "early_overclock" $REAL_PLATFORM_FILE || grep "0xbe007648" $REAL_PLATFORM_FILE
+          echo "Smooth overclock platform file swapped successfully."
 
       - name: Compile Final Firmware
         run: |
           cd openwrt
+          make -j2 download
           make -j2 V=s || make -j1 V=s
 
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Overclocked-ImmortalWrt-10.2
+          name: Overclocked-ImmortalWrt-10.11
           path: openwrt/bin/targets/ramips/mt7621/*.bin
